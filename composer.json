@@ -1,0 +1,61 @@
+{
+    "name": "nabeghe/cronark",
+    "description": "A lightweight, cron-based background job scheduler and worker manager for PHP.",
+    "keywords": [
+        "cron", "cronjob", "cron-job", "worker", "job", "queue", "jobqueue", "job-queue",
+        "background", "backgroundtask", "background-task", "task", "process", "background-process"
+    ],
+    "type": "library",
+    "homepage": "https://github.com/nabeghe/cronark",
+    "license": "MIT",
+    "authors": [
+        {
+            "name": "Hadi Akbarzadeh",
+            "email": "elsiomcoder@gmail.com",
+            "homepage": "https://elatel.ir",
+            "role": "Developer"
+        }
+    ],
+    "autoload": {
+        "psr-4": {
+            "Nabeghe\\Cronark\\": "src/"
+        }
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Nabeghe\\Cronark\\Tests\\": "tests/"
+        }
+    },
+    "require": {
+        "php": ">=8.1",
+        "ext-posix": "*"
+    },
+    "require-dev": {
+        "phpunit/phpunit": "^12.5"
+    },
+    "scripts": {
+        "test": "phpunit",
+        "test:unit": "phpunit --testsuite Unit",
+        "test:integration": "phpunit --testsuite Integration",
+        "test:coverage": "phpunit --coverage-html coverage",
+        "test:coverage-text": "phpunit --coverage-text",
+        "test:filter": "phpunit --filter",
+        "test:verbose": "phpunit --testdox --colors=always",
+        "test:watch": "phpunit --testdox --colors=always --watch"
+    },
+    "scripts-descriptions": {
+        "test": "Run all tests",
+        "test:unit": "Run unit tests only",
+        "test:integration": "Run integration tests only",
+        "test:coverage": "Generate HTML coverage report",
+        "test:coverage-text": "Show coverage in terminal",
+        "test:filter": "Run specific test (usage: composer test:filter TestName)",
+        "test:verbose": "Run tests with detailed output",
+        "test:watch": "Run tests in watch mode"
+    },
+    "config": {
+        "platform": {
+            "ext-posix": "0"
+        }
+    }
+}
