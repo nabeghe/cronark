@@ -1,17 +1,14 @@
 <?php namespace Nabeghe\Cronark\Tests\Fixtures;
 
 use Nabeghe\Cronark\Cronark;
-use Nabeghe\Cronark\Job;
 
 /**
  * Slow Job for Testing Performance
  *
  * This job takes time to execute (0.1 seconds)
  */
-class SlowJob implements Job
+class SlowJob
 {
-    protected Cronark $cronark;
-
     /**
      * Counter for number of executions
      */
@@ -22,12 +19,12 @@ class SlowJob implements Job
      */
     public static float $totalDuration = 0.0;
 
-    public function __construct(Cronark $cronark)
+    public function __construct(protected Cronark $cronark)
     {
         $this->cronark = $cronark;
     }
 
-    public function handle(): void
+    public function __invoke(): void
     {
         $startTime = microtime(true);
 

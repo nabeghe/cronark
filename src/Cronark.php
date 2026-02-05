@@ -581,11 +581,10 @@ class Cronark
             $this->print('Job initializing...', $worker);
             $this->onJobCreating();
 
-            /** @var Job $job */
             $job = new $jobClass($this);
 
             $this->print('Job handling...', $worker);
-            $job->handle();
+            $job();
             $this->print('Job completed', $worker);
 
             return true;

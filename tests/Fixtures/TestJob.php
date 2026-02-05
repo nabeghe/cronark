@@ -1,17 +1,14 @@
 <?php namespace Nabeghe\Cronark\Tests\Fixtures;
 
 use Nabeghe\Cronark\Cronark;
-use Nabeghe\Cronark\Job;
 
 /**
  * Test Job for Unit Testing
  *
  * This job tracks execution count and logs for testing purposes
  */
-class TestJob implements Job
+class TestJob
 {
-    protected Cronark $cronark;
-
     /**
      * Counter for total number of executions
      */
@@ -22,12 +19,11 @@ class TestJob implements Job
      */
     public static array $executionLog = [];
 
-    public function __construct(Cronark $cronark)
+    public function __construct(protected Cronark $cronark)
     {
-        $this->cronark = $cronark;
     }
 
-    public function handle(): void
+    public function __invoke()
     {
         self::$executionCount++;
         self::$executionLog[] = [

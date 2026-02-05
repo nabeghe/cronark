@@ -1,7 +1,6 @@
 <?php namespace Nabeghe\Cronark\Tests\Fixtures;
 
 use Nabeghe\Cronark\Cronark;
-use Nabeghe\Cronark\Job;
 use RuntimeException;
 
 /**
@@ -9,21 +8,18 @@ use RuntimeException;
  *
  * This job always throws an exception to test error handling
  */
-class FailingJob implements Job
+class FailingJob
 {
-    protected Cronark $cronark;
-
     /**
      * Counter for number of failures
      */
     public static int $failureCount = 0;
 
-    public function __construct(Cronark $cronark)
+    public function __construct(protected Cronark $cronark)
     {
-        $this->cronark = $cronark;
     }
 
-    public function handle(): void
+    public function __invoke()
     {
         self::$failureCount++;
         throw new RuntimeException('Job failed intentionally');

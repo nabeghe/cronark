@@ -54,15 +54,14 @@ Requirements:
 <?php
 
 use Nabeghe\Cronark\Cronark;
-use Nabeghe\Cronark\Job;
 
-class SendEmailsJob implements Job
+class SendEmailsJob
 {
     public function __construct(private Cronark $cronark)
     {
     }
 
-    public function handle(): void
+    public function __invoke()
     {
         // Your job logic here
         $this->cronark->print('Sending emails...');
