@@ -322,7 +322,7 @@ class Cronark
      */
     public function setDelaySeconds(float $seconds): self
     {
-        return $this->setDelay((int)($seconds * 1000000));
+        return $this->setDelay((int) ($seconds * 1000000));
     }
 
     /**
@@ -357,8 +357,8 @@ class Cronark
     /**
      * Terminate a worker process
      *
-     * @param string $worker Worker name
-     * @param int|null $pid Output parameter for killed PID
+     * @param  string  $worker  Worker name
+     * @param  int|null  $pid  Output parameter for killed PID
      * @return bool True if process was killed or PID was cleared
      */
     public function kill(string $worker = 'main', ?int &$pid = null): bool
@@ -500,8 +500,10 @@ class Cronark
 
             // Get first job
             $jobIndex = $this->nextJobIndex($worker);
-            $jobClass = $this->getJob($jobIndex, $worker);
-            $this->print("Starting with job index: $jobIndex, class: $jobClass", $worker);
+            $jobClass = !is_null($jobIndex) ? $this->getJob($jobIndex, $worker) : null;
+            if (!is_null($jobClass)) {
+                $this->print("Starting with job index: $jobIndex, class: $jobClass", $worker);
+            }
 
             $isFirst = true;
 
