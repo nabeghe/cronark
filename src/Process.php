@@ -19,10 +19,13 @@ class Process
     }
 
     /**
-     * Check if a process exists
+     * Checks if a process exists by its PID (Cross-platform)
      *
-     * @param int $pid Process ID to check
-     * @return bool True if process exists
+     * Uses posix_kill with signal 0 on Unix systems (doesn't actually send
+     * a signal, just checks if process exists) and tasklist on Windows.
+     *
+     * @param  int  $pid  The process ID to check
+     * @return bool Returns true if the process exists and is running, false otherwise
      */
     public static function exists(int $pid): bool
     {
@@ -30,45 +33,73 @@ class Process
             return false;
         }
 
-        $os = strtoupper(substr(PHP_OS, 0, 3));
+        $isWindows = stripos(php_uname('s'), 'win') > -1;
 
-        if ($os === 'WIN') {
-            $output = shell_exec("tasklist /FI \"PID eq $pid\" /NH 2>nul");
-            return $output && str_contains($output, (string) $pid);
+        if ($isWindows) {
+            exec("tasklist /FI \"PID eq $pid\" /NH 2>NUL", $output);
+
+            foreach ($output as $line) {
+                if (str_contains($line, (string) $pid)) {
+                    return true;
+                }
+            }
+
+            return false;
+        } else {
+            if (function_exists('posix_kill')) {
+                return posix_kill($pid, 0);
+            } else {
+                // Fallback: kill -0 checks existence without killing
+                exec("kill -0 $pid 2>/dev/null", $output, $returnCode);
+                return ($returnCode === 0);
+            }
         }
-
-        // Unix-like systems (Linux, macOS)
-        return @posix_kill($pid, 0);
     }
 
     /**
-     * Terminate a process
+     * Kills a process by its PID (Cross-platform: Windows, Linux, macOS)
      *
-     * @param int $pid Process ID to kill
-     * @param int $signal Signal to send (default: SIGTERM on Unix, forceful on Windows)
-     * @return bool True if process was terminated
+     * Uses SIGKILL (signal 9) on Unix systems and taskkill /F on Windows
+     * to forcefully terminate the process. This signal cannot be ignored.
+     *
+     * @param  int  $pid  The process ID to kill
+     * @return bool Returns true if the process was successfully killed, false otherwise
      */
-    public static function kill(int $pid, int $signal = 15): bool
+    public static function kill(int $pid): bool
     {
-        if ($pid <= 0 || !self::exists($pid)) {
+        if ($pid <= 0) {
             return false;
         }
 
-        $os = strtoupper(substr(PHP_OS, 0, 3));
+        $isWindows = stripos(php_uname('s'), 'win') > -1;
 
-        if ($os === 'WIN') {
-            $output = shell_exec("taskkill /PID $pid /F 2>&1");
-            return $output && (str_contains($output, 'SUCCESS') || !self::exists($pid));
+        if ($isWindows) {
+            // /F = Force kill (SIGKILL equivalent)
+            // /T = Kill process tree (all children)
+            exec("taskkill /F /T /PID $pid 2>NUL", $output, $returnCode);
+
+            // Return code 0 or 128 = success (128 = already dead)
+            $success = in_array($returnCode, [0, 128]);
+        } else {
+            if (function_exists('posix_kill')) {
+                $success = posix_kill($pid, 9); // 9 = SIGKILL
+            } else {
+                // Fallback to shell command
+                exec("kill -9 $pid 2>/dev/null", $output, $returnCode);
+                $success = ($returnCode === 0);
+            }
         }
 
-        // Unix-like systems
-        return @posix_kill($pid, $signal) && !self::exists($pid);
+        // Wait a moment for OS to clean up
+        usleep(50000); // 50ms
+
+        return $success && !self::exists($pid);
     }
 
     /**
      * Get the script path being executed by a process
      *
-     * @param int $pid Process ID
+     * @param  int  $pid  Process ID
      * @return string|null Script path or null if not found
      */
     public static function getScriptPath(int $pid): ?string
@@ -121,7 +152,7 @@ class Process
                         // Try to resolve relative to process working directory
                         $cwd_path = "/proc/$pid/cwd";
                         if (is_link($cwd_path) && $cwd = @readlink($cwd_path)) {
-                            $resolved_path = realpath($cwd . '/' . $script_path);
+                            $resolved_path = realpath($cwd.'/'.$script_path);
                             return $resolved_path ?: $script_path;
                         }
 
