@@ -56,6 +56,8 @@ class Cronark
      */
     protected int $delay = 100000;
 
+    protected string|null $processScriptPath = null;
+
     /**
      * Constructor
      *
@@ -296,7 +298,7 @@ class Cronark
      *                             - 100000: 100ms (CPU friendly, ~10 jobs/sec)
      * @return self
      */
-    public function setDelay(int $microseconds): self
+    public function setDelay(int $microseconds): static
     {
         $this->delay = max(0, $microseconds);
         return $this;
@@ -320,9 +322,34 @@ class Cronark
      * @param  float  $seconds  Delay in seconds (e.g., 0.1 for 100ms, 0.5 for 500ms)
      * @return self
      */
-    public function setDelaySeconds(float $seconds): self
+    public function setDelaySeconds(float $seconds): static
     {
         return $this->setDelay((int) ($seconds * 1000000));
+    }
+
+    public function getCurrentProcessScriptPath(): ?string
+    {
+        if (!isset($this->processScriptPath)) {
+            $this->processScriptPath = Process::getScriptPath(Process::id());
+        }
+
+        return $this->processScriptPath;
+    }
+
+    public function setCurrentProcessScriptPath(?string $path): static
+    {
+        $this->processScriptPath = $path;
+        return $this;
+    }
+
+    public function getProcessScriptPath(int $pid): ?string
+    {
+        return Process::getScriptPath($pid);
+    }
+
+    public function processExists(int $pid): bool
+    {
+        return Process::exists($pid);
     }
 
     /**
@@ -338,13 +365,13 @@ class Cronark
     {
         $pid = $this->getPid($worker);
 
-        if (!$pid || !Process::exists($pid)) {
+        if (!$pid || !$this->processExists($pid)) {
             return false;
         }
 
         // Verify it's running the same script
-        $currentScriptPath = Process::getScriptPath(Process::id());
-        $targetScriptPath = Process::getScriptPath($pid);
+        $currentScriptPath = $this->getCurrentProcessScriptPath();
+        $targetScriptPath = $this->getProcessScriptPath($pid);
 
         // If we can't determine paths, assume it's active (safer)
         if (is_null($currentScriptPath) || is_null($targetScriptPath)) {
@@ -373,7 +400,7 @@ class Cronark
 
         // Clear PID regardless of kill success
         // This handles cases where process doesn't exist anymore
-        if ($killed || !Process::exists($pid)) {
+        if ($killed || !$this->processExists($pid)) {
             $this->setPid(null, $worker);
             return true;
         }

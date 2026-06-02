@@ -47,17 +47,20 @@ class Process
             return false;
         } else {
             if (function_exists('posix_kill')) {
-                return posix_kill($pid, 0);
+                return @posix_kill($pid, 0);
             }
 
-            if (is_dir("/proc/$pid")) {
+            $openBasedir = ini_get('open_basedir');
+            $procAllowed = empty($openBasedir) || str_contains($openBasedir, '/proc');
+
+            if ($procAllowed && is_dir("/proc/$pid")) {
                 return true;
             }
 
             if (function_exists('exec')) {
                 $output = [];
                 $return = 0;
-                exec("kill -0 " . (int)$pid . " 2>/dev/null", $output, $return);
+                @exec("kill -0 ".$pid." 2>/dev/null", $output, $return);
                 return $return === 0;
             }
 
@@ -102,7 +105,7 @@ class Process
                 $output = [];
                 $returnCode = 0;
 
-                exec("kill -9 " . $pid . " 2>&1", $output, $returnCode);
+                exec("kill -9 ".$pid." 2>&1", $output, $returnCode);
 
                 $success = ($returnCode === 0);
             } else {
@@ -152,34 +155,55 @@ class Process
         }
 
         if ($os === 'LIN' || $os === 'DAR') { // Linux or macOS
-            $cmdline_path = "/proc/$pid/cmdline";
 
-            if (file_exists($cmdline_path)) {
-                $cmdline_content = @file_get_contents($cmdline_path);
+            // --- 1. Try /proc (only if allowed) ---
+            $cmdlinePath = "/proc/$pid/cmdline";
 
-                if ($cmdline_content !== false) {
-                    $args = explode("\0", $cmdline_content);
-                    $args = array_filter($args);
+            $openBasedir = ini_get('open_basedir');
+            $procAllowed = empty($openBasedir) || str_contains($openBasedir, '/proc');
 
-                    if (isset($args[1])) {
-                        $script_path = $args[1];
+            if ($procAllowed && is_readable($cmdlinePath)) {
+                $args = array_values(array_filter(explode("\0", @file_get_contents($cmdlinePath))));
 
-                        // Try to resolve absolute path
-                        if (realpath($script_path) !== false) {
-                            return realpath($script_path);
+                foreach ($args as $arg) {
+                    if (!$arg || $arg[0] === '-') {
+                        continue;
+                    }
+
+                    if (substr($arg, -4) !== '.php') {
+                        continue;
+                    }
+
+                    if (is_file($arg)) {
+                        return realpath($arg);
+                    }
+
+                    $cwdPath = "/proc/$pid/cwd";
+                    if (is_link($cwdPath)) {
+                        $cwd = @readlink($cwdPath);
+                        if ($cwd && is_file($cwd.'/'.$arg)) {
+                            return realpath($cwd.'/'.$arg);
                         }
-
-                        // Try to resolve relative to process working directory
-                        $cwd_path = "/proc/$pid/cwd";
-                        if (is_link($cwd_path) && $cwd = @readlink($cwd_path)) {
-                            $resolved_path = realpath($cwd.'/'.$script_path);
-                            return $resolved_path ?: $script_path;
-                        }
-
-                        return $script_path;
                     }
                 }
             }
+
+            // --- 2. Fallback (works on shared hosting / cPanel) ---
+            if (!empty($_SERVER['SCRIPT_FILENAME'])) {
+                return realpath($_SERVER['SCRIPT_FILENAME']);
+            }
+
+            if (!empty($_SERVER['PHP_SELF'])) {
+                return realpath($_SERVER['DOCUMENT_ROOT'].$_SERVER['PHP_SELF']);
+            }
+
+            // --- 3. Last resort (CLI safe) ---
+            foreach (debug_backtrace(DEBUG_BACKTRACE_IGNORE_ARGS) as $trace) {
+                if (!empty($trace['file'])) {
+                    return realpath($trace['file']);
+                }
+            }
+
         }
 
         return null;
