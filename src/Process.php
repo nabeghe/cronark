@@ -48,11 +48,20 @@ class Process
         } else {
             if (function_exists('posix_kill')) {
                 return posix_kill($pid, 0);
-            } else {
-                // Fallback: kill -0 checks existence without killing
-                exec("kill -0 $pid 2>/dev/null", $output, $returnCode);
-                return ($returnCode === 0);
             }
+
+            if (is_dir("/proc/$pid")) {
+                return true;
+            }
+
+            if (function_exists('exec')) {
+                $output = [];
+                $return = 0;
+                exec("kill -0 " . (int)$pid . " 2>/dev/null", $output, $return);
+                return $return === 0;
+            }
+
+            return false;
         }
     }
 
@@ -71,6 +80,10 @@ class Process
             return false;
         }
 
+        if (!self::exists($pid)) {
+            return false;
+        }
+
         $isWindows = stripos(php_uname('s'), 'win') > -1;
 
         if ($isWindows) {
@@ -81,17 +94,24 @@ class Process
             // Return code 0 or 128 = success (128 = already dead)
             $success = in_array($returnCode, [0, 128]);
         } else {
+            $success = false;
+
             if (function_exists('posix_kill')) {
-                $success = posix_kill($pid, 9); // 9 = SIGKILL
-            } else {
-                // Fallback to shell command
-                exec("kill -9 $pid 2>/dev/null", $output, $returnCode);
+                $success = posix_kill($pid, 9);
+            } elseif (function_exists('exec')) {
+                $output = [];
+                $returnCode = 0;
+
+                exec("kill -9 " . $pid . " 2>&1", $output, $returnCode);
+
                 $success = ($returnCode === 0);
+            } else {
+                return false;
             }
         }
 
         // Wait a moment for OS to clean up
-        usleep(50000); // 50ms
+        usleep(100000); // 50ms
 
         return $success && !self::exists($pid);
     }
